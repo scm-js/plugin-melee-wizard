@@ -1,0 +1,11 @@
+{
+  "name": "Melee Wizard",
+  "id": "melee-wizard",
+  "version": "1.0.0",
+  "description": "Builds a ladder-style map's bases in one action each: symmetric start locations for 2, 4 or 8 players, and mineral lines with the geyser laid out on the three-tile ring the game mines fastest from, mirrored to every player. Also mirrors what you select and checks the map's symmetry.",
+  "author": "Jeany",
+  "homepage": "https://github.com/scm-js/plugin-melee-wizard",
+  "entry": "plugin.ts",
+  "icon": "icon.svg",
+  "api": 1
+}
