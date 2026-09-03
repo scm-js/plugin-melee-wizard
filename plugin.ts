@@ -343,7 +343,7 @@ class Session {
       boxes.push({ rect: b.hall, kind: "hall", ok: inMap(b.hall, sz.width, sz.height), image: b.image });
       for (const r of b.resources) {
         const c = centreOf(r.rect);
-        const ok = inMap(r.rect, sz.width, sz.height) && this.api.query.placement(r.unitId, c.x, c.y).problem === null;
+        const ok = inMap(r.rect, sz.width, sz.height) && this.api.query.placement(r.unitId, c.x, c.y)?.problem === null;
         boxes.push({ rect: r.rect, kind: r.unitId === VESPENE_GEYSER ? "geyser" : "mineral", ok, image: b.image });
       }
     }
@@ -356,7 +356,7 @@ class Session {
     if (!sz) return;
     const rect = rectAt(p.px, p.py, MINERAL);
     const c = centreOf(rect);
-    const ok = inMap(rect, sz.width, sz.height) && this.api.query.placement(MINERAL_FIELDS[0], c.x, c.y).problem === null;
+    const ok = inMap(rect, sz.width, sz.height) && this.api.query.placement(MINERAL_FIELDS[0], c.x, c.y)?.problem === null;
     this.ghost = { boxes: [{ rect, kind: "mineral", ok, image: 0 }], from: null, to: null };
   }
 
