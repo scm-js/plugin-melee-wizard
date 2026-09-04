@@ -13,11 +13,11 @@
  * the layout previewed as it goes — refused spots in red), `api.ui.panel` and
  * `api.document.edit` with `placeUnit` / `canPlaceUnit` / `updateUnits`. `layout.ts` is
  * the pure geometry (the ring, the line, the symmetries) with its own tests; this file
- * is the panel, the tools and the transactions. `plugin-api/` is the editor's emitted
- * type declarations, vendored so the repository type-checks alone; the host erases the
- * type-only import.
+ * is the panel, the tools and the transactions. `@scm-js/plugin-api` is the editor's type
+ * declarations, a devDependency generated from its own `src/plugins/api.ts`; the host
+ * erases the type-only import.
  */
-import type { EditTransaction, MapPointer, MapToolHandle, MapView, PanelHandle, PluginApi } from "./plugin-api/plugins/api";
+import type { EditTransaction, MapPointer, MapToolHandle, MapView, PanelHandle, PluginApi } from "@scm-js/plugin-api";
 import {
   angleDiff, baseImages, centreOf, HALL, inMap, isResource, MINERAL, MINERAL_FIELDS, NEUTRAL, outwardDirection,
   rectAt, rectImages, sameKind, snapAngle, START_LOCATION, summarizeBases, swapsAxes, symmetryAvailable, symmetryAxes, symmetryGaps, symmetryImages, symmetryInfo, SYMMETRIES, TILE,
