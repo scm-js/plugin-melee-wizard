@@ -60,7 +60,8 @@ function ringPositions(hall, size, gap) {
   return out.sort((a, b) => angleOf(hall, a) - angleOf(hall, b));
 }
 function layoutBase(hall, spec) {
-  const ring = ringPositions(hall, MINERAL, spec.gap);
+  const fits = spec.fits ?? (() => true);
+  const ring = ringPositions(hall, MINERAL, spec.gap).filter(fits);
   const n = ring.length;
   const minerals = [];
   const short = { minerals: 0, geysers: 0 };
@@ -115,7 +116,7 @@ function layoutBase(hall, spec) {
   }
   const geysers = [];
   if (spec.geysers > 0) {
-    const gring = ringPositions(hall, GEYSER, spec.geyserGap);
+    const gring = ringPositions(hall, GEYSER, spec.geyserGap).filter(fits);
     const clear = (g) => minerals.every((m) => chebGap(m, g) >= spec.geyserSpacing) && geysers.every((o) => chebGap(o, g) >= 1);
     const pastEnd = (side) => {
       let best = null;
