@@ -238,14 +238,31 @@ function symmetryAxes(mode, W, H) {
       return [v, hz, d, ad];
   }
 }
+function tileNoise(x, y) {
+  const h2 = Math.imul(x * 73856093 ^ y * 19349663, 73244475) >>> 0;
+  return (h2 ^ h2 >>> 15) >>> 0;
+}
+function mineralTypeAt(x, y) {
+  return MINERAL_FIELDS[tileNoise(x, y) % 3];
+}
+function mineralLooks(rects, look = "mixed") {
+  if (look !== "mixed") return rects.map(() => MINERAL_FIELDS[look]);
+  const all = MINERAL_FIELDS;
+  let prev = -1;
+  return rects.map((rect) => {
+    const others = all.filter((id) => id !== prev);
+    prev = others[tileNoise(rect.x, rect.y) % others.length];
+    return prev;
+  });
+}
 function baseResources(layout, values) {
   const out = [];
   const n = layout.minerals.length;
+  const looks = mineralLooks(layout.minerals, values.look);
   layout.minerals.forEach((rect, i) => {
     const end = i === 0 || i === n - 1;
     const amount = end && values.endPatches !== null ? values.endPatches : values.minerals;
-    const unitId = values.look === "mixed" ? MINERAL_FIELDS[i % 3] : MINERAL_FIELDS[values.look];
-    out.push({ unitId, rect, amount });
+    out.push({ unitId: looks[i], rect, amount });
   });
   for (const rect of layout.geysers) out.push({ unitId: VESPENE_GEYSER, rect, amount: values.gas });
   return out;
@@ -695,12 +712,13 @@ var Session = class {
     const rect = rectAt(p.px, p.py, MINERAL);
     if (!inMap(rect, sz.width, sz.height)) return;
     const c = centreOf(rect);
+    const id = mineralTypeAt(rect.x, rect.y);
     const result = this.api.document.edit(`Blocking patch (${this.settings.blockValue})`, (tx) => {
-      if (this.settings.skipRefused && !tx.canPlaceUnit(MINERAL_FIELDS[0], c.x, c.y)) {
+      if (this.settings.skipRefused && !tx.canPlaceUnit(id, c.x, c.y)) {
         tx.note("the spot is refused");
         return;
       }
-      const index = tx.placeUnit(MINERAL_FIELDS[0], NEUTRAL, c.x, c.y);
+      const index = tx.placeUnit(id, NEUTRAL, c.x, c.y);
       setAmount(tx, index, this.settings.blockValue);
     });
     this.say(result.units ? `blocking patch of <b>${this.settings.blockValue}</b> at ${rect.x}, ${rect.y}` : `<span class="bad">nothing placed: ${result.notes.join(", ") || "refused"}</span>`);

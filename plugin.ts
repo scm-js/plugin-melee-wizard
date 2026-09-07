@@ -19,7 +19,7 @@
  */
 import type { EditTransaction, MapPointer, MapToolHandle, MapView, PanelHandle, PluginApi } from "@scm-js/plugin-api";
 import {
-  angleDiff, baseImages, centreOf, HALL, inMap, isResource, MINERAL, MINERAL_FIELDS, NEUTRAL, outwardDirection,
+  angleDiff, baseImages, centreOf, HALL, inMap, isResource, MINERAL, MINERAL_FIELDS, mineralTypeAt, NEUTRAL, outwardDirection,
   rectAt, rectImages, sameKind, snapAngle, START_LOCATION, summarizeBases, swapsAxes, symmetryAvailable, symmetryAxes, symmetryGaps, symmetryImages, symmetryInfo, SYMMETRIES, TILE,
   VESPENE_GEYSER,
   type BaseSpec, type BaseUnits, type GeyserSide, type MineralLook, type Placed, type Point, type PointMap, type ResourceValues, type SymmetryMode, type TileRect,
@@ -431,9 +431,10 @@ class Session {
     const rect = rectAt(p.px, p.py, MINERAL);
     if (!inMap(rect, sz.width, sz.height)) return;
     const c = centreOf(rect);
+    const id = mineralTypeAt(rect.x, rect.y);
     const result = this.api.document.edit(`Blocking patch (${this.settings.blockValue})`, (tx) => {
-      if (this.settings.skipRefused && !tx.canPlaceUnit(MINERAL_FIELDS[0], c.x, c.y)) { tx.note("the spot is refused"); return; }
-      const index = tx.placeUnit(MINERAL_FIELDS[0], NEUTRAL, c.x, c.y);
+      if (this.settings.skipRefused && !tx.canPlaceUnit(id, c.x, c.y)) { tx.note("the spot is refused"); return; }
+      const index = tx.placeUnit(id, NEUTRAL, c.x, c.y);
       setAmount(tx, index, this.settings.blockValue);
     });
     this.say(result.units ? `blocking patch of <b>${this.settings.blockValue}</b> at ${rect.x}, ${rect.y}` : `<span class="bad">nothing placed: ${result.notes.join(", ") || "refused"}</span>`);
