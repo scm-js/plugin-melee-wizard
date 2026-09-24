@@ -1,6 +1,6 @@
 # Melee Wizard
 
-A plugin for [scmJS](https://github.com/jeany55/scm-js), the browser-based StarCraft 1 /
+A plugin for [scmJS](https://github.com/scm-js/scm-js), the browser-based StarCraft 1 /
 Brood War map editor. It places the parts of a ladder-style map that are geometry
 rather than art, one action each:
 
@@ -108,7 +108,7 @@ and add `http://localhost:3000/` in Manage Plugins, then use **Reload** after ea
 
 A plugin runs with the editor's own privileges. There is no sandbox.
 
-See [`docs/plugins.md`](https://github.com/jeany55/scm-js/blob/main/docs/plugins.md) in the editor
+See [`docs/plugins.md`](https://github.com/scm-js/scm-js/blob/main/docs/plugins.md) in the editor
 for the API tour; this plugin is the worked example for `placeUnit` / `canPlaceUnit` /
 `updateUnits` inside one `document.edit`, and for a map tool whose drag is previewed
 with `draw`.
