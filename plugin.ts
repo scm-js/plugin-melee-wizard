@@ -24,6 +24,8 @@ import {
   VESPENE_GEYSER,
   type BaseSpec, type BaseUnits, type GeyserSide, type MineralLook, type Placed, type Point, type PointMap, type ResourceValues, type SymmetryMode, type TileRect,
 } from "./layout";
+import { bindLanguage, msg, t, translate } from "./i18n";
+import { KO } from "./ko";
 
 /* ── DOM helpers ────────────────────────────────────────── */
 
@@ -80,11 +82,14 @@ const STYLE = `
 type Preset = "main" | "natural" | "third" | "custom";
 
 const PRESETS: { id: Preset; label: string; minerals: number; geysers: number }[] = [
-  { id: "main", label: "Main: 8 patches, 1 geyser", minerals: 8, geysers: 1 },
-  { id: "natural", label: "Natural: 7 patches, 1 geyser", minerals: 7, geysers: 1 },
-  { id: "third", label: "Third: 6 patches, 1 geyser", minerals: 6, geysers: 1 },
-  { id: "custom", label: "Custom", minerals: 8, geysers: 1 },
+  { id: "main", label: msg("Main: 8 patches, 1 geyser"), minerals: 8, geysers: 1 },
+  { id: "natural", label: msg("Natural: 7 patches, 1 geyser"), minerals: 7, geysers: 1 },
+  { id: "third", label: msg("Third: 6 patches, 1 geyser"), minerals: 6, geysers: 1 },
+  { id: "custom", label: msg("Custom"), minerals: 8, geysers: 1 },
 ];
+
+/** `Player 3`, in the reader's language (`api.names.player` is the English trigger vocabulary). */
+const playerName = (slot: number): string => t("Player {n}", { n: slot + 1 });
 
 interface Settings {
   symmetry: SymmetryMode;
@@ -162,7 +167,7 @@ class Session {
 
   say(text: string) {
     this.status = text;
-    this.api.ui.status(`Melee Wizard: ${text.replace(/<[^>]+>/g, "")}`);
+    this.api.ui.status(t("Melee Wizard: {text}", { text: text.replace(/<[^>]+>/g, "") }));
     this.notify();
   }
 
@@ -235,15 +240,15 @@ class Session {
   /* ── tools ── */
 
   start(id: ToolId) {
-    if (!this.api.document.isOpen()) { this.say("open a map first"); return; }
+    if (!this.api.document.isOpen()) { this.say(t("open a map first")); return; }
     if (this.active && this.toolId === id) { this.stop(); return; }
     this.toolId = id;
     this.ghost = null;
     this.press = null;
     const names: Record<ToolId, { name: string; hint: string }> = {
-      starts: { name: "Melee Wizard: start locations", hint: "click where Player 1 starts; the others follow the symmetry" },
-      base: { name: "Melee Wizard: base", hint: "press on the town hall spot and drag towards where the minerals go; a click points them away from the map's centre" },
-      block: { name: "Melee Wizard: blocking patch", hint: "click to drop a mineral patch of the blocking amount" },
+      starts: { name: t("Melee Wizard: start locations"), hint: t("click where Player 1 starts; the others follow the symmetry") },
+      base: { name: t("Melee Wizard: base"), hint: t("press on the town hall spot and drag towards where the minerals go; a click points them away from the map's centre") },
+      block: { name: t("Melee Wizard: blocking patch"), hint: t("click to drop a mineral patch of the blocking amount") },
     };
     this.tool = this.api.ui.mapTool({
       ...names[id],
@@ -312,7 +317,7 @@ class Session {
     const hall = rectAt(p.px, p.py, HALL);
     const rects = rectImages(hall, this.images(), this.toward());
     this.ghost = {
-      boxes: rects.map((rect, image) => ({ rect, kind: "start", ok: inMap(rect, sz.width, sz.height), image, label: this.api.names.player(image) })),
+      boxes: rects.map((rect, image) => ({ rect, kind: "start", ok: inMap(rect, sz.width, sz.height), image, label: playerName(image) })),
       from: null, to: null,
     };
   }
@@ -368,18 +373,20 @@ class Session {
     const hall = rectAt(p.px, p.py, HALL);
     const rects = rectImages(hall, this.images(), this.toward());
     const n = rects.length;
-    const result = this.api.document.edit(`Place ${n} start location${n === 1 ? "" : "s"}`, (tx) => {
+    const result = this.api.document.edit(t("Place {n, plural, one {# start location} other {# start locations}}", { n }), (tx) => {
       if (this.settings.replaceStarts) {
         const old = tx.scenario.units.map((u, i) => (u.unitId === START_LOCATION && u.owner < n ? i : -1)).filter((i) => i >= 0);
         if (old.length) tx.removeUnits(old);
       }
       rects.forEach((rect, image) => {
-        if (!inMap(rect, sz.width, sz.height)) { tx.note(`${this.api.names.player(image)}'s start location would be off the map`); return; }
+        if (!inMap(rect, sz.width, sz.height)) { tx.note(t("{player}'s start location would be off the map", { player: playerName(image) })); return; }
         const c = centreOf(rect);
         tx.placeUnit(START_LOCATION, image, c.x, c.y);
       });
     });
-    this.say(result.changed ? `placed <b>${result.units}</b> start location${result.units === 1 ? "" : "s"}${result.notes.length ? ` <span class="bad">· ${result.notes.join(" · ")}</span>` : ""}` : "nothing placed");
+    this.say(result.changed
+      ? `${t("placed {n, plural, one {<b>#</b> start location} other {<b>#</b> start locations}}", { n: result.units })}${result.notes.length ? ` <span class="bad">· ${result.notes.join(" · ")}</span>` : ""}`
+      : t("nothing placed"));
   }
 
   /** Place a laid-out base and its images; returns what was placed. */
@@ -398,7 +405,7 @@ class Session {
           out.placed++;
         }
       }
-      if (out.skipped) tx.note(`${out.skipped} skipped: off the map, or the ground or another unit refused them`);
+      if (out.skipped) tx.note(t("{n} skipped: off the map, or the ground or another unit refused them", { n: out.skipped }));
     });
     out.notes = result.notes;
     return out;
@@ -413,15 +420,17 @@ class Session {
     const images = this.settings.mirror ? this.images() : this.images().slice(0, 1);
     const bases = baseImages(this.press.hall, this.spec(direction), this.values(), images, this.toward());
     const n = images.length;
-    const r = this.placeBases(bases, `Add base${n > 1 ? ` for ${n} players` : ""}`);
+    const r = this.placeBases(bases, n > 1 ? t("Add base for {n} players", { n }) : t("Add base"));
     this.sayPlaced(r, bases, n);
   }
 
   private sayPlaced(r: { placed: number; skipped: number }, bases: BaseUnits[], n: number) {
     const short = bases.reduce((sum, b) => sum + b.layout.short.minerals + b.layout.short.geysers, 0);
-    const parts = [`placed <b>${r.placed}</b> resource${r.placed === 1 ? "" : "s"}${n > 1 ? ` over ${n} bases` : ""}`];
-    if (r.skipped) parts.push(`<span class="bad">${r.skipped} skipped (off the map, or the ground or another unit refused them)</span>`);
-    if (short) parts.push(`<span class="bad">the ring had no room for ${short}</span>`);
+    const parts = [n > 1
+      ? t("placed {n, plural, one {<b>#</b> resource} other {<b>#</b> resources}} over {bases} bases", { n: r.placed, bases: n })
+      : t("placed {n, plural, one {<b>#</b> resource} other {<b>#</b> resources}}", { n: r.placed })];
+    if (r.skipped) parts.push(`<span class="bad">${t("{n} skipped (off the map, or the ground or another unit refused them)", { n: r.skipped })}</span>`);
+    if (short) parts.push(`<span class="bad">${t("the ring had no room for {n}", { n: short })}</span>`);
     this.say(parts.join(" · "));
   }
 
@@ -432,20 +441,22 @@ class Session {
     if (!inMap(rect, sz.width, sz.height)) return;
     const c = centreOf(rect);
     const id = mineralTypeAt(rect.x, rect.y);
-    const result = this.api.document.edit(`Blocking patch (${this.settings.blockValue})`, (tx) => {
-      if (this.settings.skipRefused && !tx.canPlaceUnit(id, c.x, c.y)) { tx.note("the spot is refused"); return; }
+    const result = this.api.document.edit(t("Blocking patch ({n})", { n: this.settings.blockValue }), (tx) => {
+      if (this.settings.skipRefused && !tx.canPlaceUnit(id, c.x, c.y)) { tx.note(t("the spot is refused")); return; }
       const index = tx.placeUnit(id, NEUTRAL, c.x, c.y);
       setAmount(tx, index, this.settings.blockValue);
     });
-    this.say(result.units ? `blocking patch of <b>${this.settings.blockValue}</b> at ${rect.x}, ${rect.y}` : `<span class="bad">nothing placed: ${result.notes.join(", ") || "refused"}</span>`);
+    this.say(result.units
+      ? t("blocking patch of <b>{n}</b> at {x}, {y}", { n: this.settings.blockValue, x: rect.x, y: rect.y })
+      : `<span class="bad">${t("nothing placed: {why}", { why: result.notes.join(", ") || t("refused") })}</span>`);
   }
 
   /** Bases at every start location the map has: mirrored from the first when the starts follow the symmetry, laid out one by one otherwise. */
   basesAtStarts() {
     const sz = this.size();
-    if (!sz) { this.say("open a map first"); return; }
+    if (!sz) { this.say(t("open a map first")); return; }
     const starts = this.api.query.startLocations().sort((a, b) => a.owner - b.owner);
-    if (!starts.length) { this.say("<span class=\"bad\">the map has no start locations</span>"); return; }
+    if (!starts.length) { this.say(`<span class="bad">${t("the map has no start locations")}</span>`); return; }
     const images = this.images();
     const symmetric = this.mode() !== "none" && starts.length === images.length && images.every((f, k) => {
       const q = f({ x: starts[0].x, y: starts[0].y });
@@ -461,9 +472,9 @@ class Session {
         bases.push(...baseImages(hall, this.spec(outwardDirection(s.x, s.y, sz.width, sz.height)), this.values(), [(p) => p]).map((b) => ({ ...b, image: i })));
       });
     }
-    const r = this.placeBases(bases, `Bases at ${starts.length} start location${starts.length === 1 ? "" : "s"}`);
+    const r = this.placeBases(bases, t("Bases at {n, plural, one {# start location} other {# start locations}}", { n: starts.length }));
     this.sayPlaced(r, bases, starts.length);
-    if (!symmetric && this.mode() !== "none") this.say(`${this.status} · <span class="bad">the start locations do not follow the chosen symmetry, so each base was laid out on its own</span>`);
+    if (!symmetric && this.mode() !== "none") this.say(`${this.status} · <span class="bad">${t("the start locations do not follow the chosen symmetry, so each base was laid out on its own")}</span>`);
   }
 
   /* ── extras ── */
@@ -476,9 +487,9 @@ class Session {
 
   mirrorSelection() {
     const sel = this.api.selection.units();
-    if (!sel.length) { this.say("<span class=\"bad\">select some units first (on the Units layer)</span>"); return; }
+    if (!sel.length) { this.say(`<span class="bad">${t("select some units first (on the Units layer)")}</span>`); return; }
     const images = this.images();
-    if (images.length < 2) { this.say("<span class=\"bad\">choose a symmetry first</span>"); return; }
+    if (images.length < 2) { this.say(`<span class="bad">${t("choose a symmetry first")}</span>`); return; }
     const all = this.placed();
     const chosen = all.filter((u) => sel.includes(u.index));
     const missing = symmetryGaps(chosen.map((u) => ({ ...u })), images, (o, k) => this.ownerImage(o, k), (u, k) => this.tolerance(u.unitId, k, "mirror")).filter((g) => {
@@ -489,12 +500,12 @@ class Session {
       const tol = this.tolerance(u.unitId, g.image, "mirror");
       return !all.some((v) => sameKind(v.unitId, u.unitId) && (u.unitId === START_LOCATION || v.owner === owner) && Math.abs(v.x - p.x) <= tol && Math.abs(v.y - p.y) <= tol);
     });
-    if (!missing.length) { this.say("every selected unit already has its images"); return; }
+    if (!missing.length) { this.say(t("every selected unit already has its images")); return; }
     const scn = this.api.document.scenario()!;
     const sz = this.size()!;
     let placed = 0;
     let skipped = 0;
-    this.api.document.edit(`Mirror ${sel.length} unit${sel.length === 1 ? "" : "s"}`, (tx) => {
+    this.api.document.edit(t("Mirror {n, plural, one {# unit} other {# units}}", { n: sel.length }), (tx) => {
       for (const g of missing) {
         const u = scn.units[g.index];
         const p = images[g.image]({ x: u.x, y: u.y });
@@ -511,20 +522,20 @@ class Session {
         }));
         placed++;
       }
-      if (skipped) tx.note(`${skipped} skipped`);
+      if (skipped) tx.note(t("{n} skipped", { n: skipped }));
     });
-    this.say(`mirrored <b>${placed}</b> unit${placed === 1 ? "" : "s"}${skipped ? ` <span class="bad">· ${skipped} skipped (off the map or refused)</span>` : ""}`);
+    this.say(`${t("mirrored {n, plural, one {<b>#</b> unit} other {<b>#</b> units}}", { n: placed })}${skipped ? ` <span class="bad">· ${t("{n} skipped (off the map or refused)", { n: skipped })}</span>` : ""}`);
   }
 
   checkSymmetry() {
     const images = this.images();
-    if (images.length < 2) { this.say("<span class=\"bad\">choose a symmetry first</span>"); return; }
+    if (images.length < 2) { this.say(`<span class="bad">${t("choose a symmetry first")}</span>`); return; }
     const all = this.placed();
     this.gaps = symmetryGaps(all, images, (o, k) => this.ownerImage(o, k), (u, k) => this.tolerance(u.unitId, k));
     const indices = [...new Set(this.gaps.map((g) => g.index))];
     this.api.selection.setUnits(indices);
-    if (!indices.length) this.say(`every unit has its images under <b>${symmetryInfo(this.mode()).label}</b>`);
-    else this.say(`<span class="bad">${indices.length} unit${indices.length === 1 ? "" : "s"} without a counterpart</span> — selected on the map, listed below`);
+    if (!indices.length) this.say(t("every unit has its images under <b>{symmetry}</b>", { symmetry: translate(symmetryInfo(this.mode()).label) }));
+    else this.say(`<span class="bad">${t("{n, plural, one {# unit} other {# units}} without a counterpart", { n: indices.length })}</span> — ${t("selected on the map, listed below")}`);
   }
 
   summary(): string {
@@ -532,8 +543,8 @@ class Session {
     if (!scn) return "";
     const all = this.placed();
     const rows = summarizeBases(all, (i) => scn.units[i].resourceAmount);
-    if (!rows.length) return "no start locations";
-    return rows.sort((a, b) => a.owner - b.owner).map((r) => `${this.api.names.player(r.owner)}: ${r.patches} patch${r.patches === 1 ? "" : "es"} (${r.mineralTotal}), ${r.geysers} geyser${r.geysers === 1 ? "" : "s"}`).join("<br>");
+    if (!rows.length) return t("no start locations");
+    return rows.sort((a, b) => a.owner - b.owner).map((r) => t("{player}: {patches, plural, one {# patch} other {# patches}} ({total}), {geysers, plural, one {# geyser} other {# geysers}}", { player: playerName(r.owner), patches: r.patches, total: r.mineralTotal, geysers: r.geysers })).join("<br>");
   }
 
   /* ── drawing ── */
@@ -599,7 +610,7 @@ class Session {
       ctx.stroke();
       const a = Math.atan2(g.to.y - g.from.y, g.to.x - g.from.x);
       const deg = Math.round(((angleDiff(a, 0) * 180) / Math.PI + 360) % 360);
-      const text = Math.hypot(g.to.x - g.from.x, g.to.y - g.from.y) < TILE ? "away from the centre" : `${deg}°`;
+      const text = Math.hypot(g.to.x - g.from.x, g.to.y - g.from.y) < TILE ? t("away from the centre") : `${deg}°`;
       ctx.fillStyle = "rgba(0,0,0,.7)";
       const tw = ctx.measureText(text).width + 8;
       ctx.fillRect(view.x(g.to.x) - tw / 2, view.y(g.to.y) - 22, tw, 16);
@@ -647,31 +658,31 @@ function mountPanel(session: Session, body: HTMLElement): () => void {
   };
 
   /* Symmetry */
-  const symSel = W.select(SYMMETRIES.map((m) => ({ value: m.id, label: m.label })), { value: s.symmetry, onChange: (v) => { s.symmetry = v as SymmetryMode; session.save(); render(); session.tool?.redraw(); } });
+  const symSel = W.select(SYMMETRIES.map((m) => ({ value: m.id, label: translate(m.label) })), { value: s.symmetry, onChange: (v) => { s.symmetry = v as SymmetryMode; session.save(); render(); session.tool?.redraw(); } });
   const symNote = h("div", { className: "mlw-keys" });
-  root.append(section("Symmetry", true,
-    row("Layout", symSel),
+  root.append(section(t("Symmetry"), true,
+    row(t("Layout"), symSel),
     symNote,
-    W.checkbox("Draw the axes on the map while a tool runs", { value: s.showAxes, onChange: (v) => { s.showAxes = v; session.save(); session.tool?.redraw(); } }),
+    W.checkbox(t("Draw the axes on the map while a tool runs"), { value: s.showAxes, onChange: (v) => { s.showAxes = v; session.save(); session.tool?.redraw(); } }),
   ));
 
   /* Tools */
   const tools: { id: ToolId; label: string; glyph: string }[] = [
-    { id: "starts", label: "Start locations", glyph: "⌂" },
-    { id: "base", label: "Add base (drag)", glyph: "◈" },
+    { id: "starts", label: t("Start locations"), glyph: "⌂" },
+    { id: "base", label: t("Add base (drag)"), glyph: "◈" },
   ];
   const toolBtns = new Map<ToolId, HTMLButtonElement>();
   const toolGrid = h("div", { className: "mlw-tools" });
-  for (const t of tools) {
-    const btn = h("button", { className: "mlw-tool", type: "button", onClick: () => session.start(t.id) }, h("span", { className: "mlw-glyph" }, t.glyph), t.label);
-    toolBtns.set(t.id, btn);
+  for (const tool of tools) {
+    const btn = h("button", { className: "mlw-tool", type: "button", onClick: () => session.start(tool.id) }, h("span", { className: "mlw-glyph" }, tool.glyph), tool.label);
+    toolBtns.set(tool.id, btn);
     toolGrid.append(btn);
   }
-  const allBtn = W.button("Bases at every start location", { primary: true, title: "One mineral line and geyser per start location the map already has", onClick: () => session.basesAtStarts() });
+  const allBtn = W.button(t("Bases at every start location"), { primary: true, title: t("One mineral line and geyser per start location the map already has"), onClick: () => session.basesAtStarts() });
   root.append(toolGrid, allBtn);
 
   /* Base */
-  const presetSel = W.select(PRESETS.map((p) => ({ value: p.id, label: p.label })), { value: s.preset, onChange: (v) => {
+  const presetSel = W.select(PRESETS.map((p) => ({ value: p.id, label: translate(p.label) })), { value: s.preset, onChange: (v) => {
     s.preset = v as Preset;
     const p = PRESETS.find((x) => x.id === s.preset)!;
     if (p.id !== "custom") { s.minerals = p.minerals; s.geysers = p.geysers; }
@@ -683,67 +694,70 @@ function mountPanel(session: Session, body: HTMLElement): () => void {
   const custom = () => { s.preset = "custom"; presetSel.value = "custom"; session.save(); };
   const mineralsIn = num("minerals", 0, 24, custom);
   const geysersIn = num("geysers", 0, 2, custom);
-  const sideSel = W.select([{ value: "auto", label: "Nearer end" }, { value: "left", label: "Left end" }, { value: "right", label: "Right end" }], { value: s.geyserSide, onChange: (v) => { s.geyserSide = v as GeyserSide; session.save(); session.tool?.redraw(); } });
-  root.append(section("Base", true,
-    row("Preset", presetSel),
-    row("Patches", mineralsIn, unit("mineral fields")),
-    row("Geysers", geysersIn, sideSel),
-    row("Gap", num("gap", 1, 8), unit("tiles to the hall (3 mines fastest)")),
-    row("Geyser gap", num("geyserGap", 1, 8), unit("tiles to the hall")),
-    row("Spacing", num("geyserSpacing", 0, 4), unit("tiles between geyser and patches")),
-    W.checkbox("Place for every player (the symmetry's images)", { value: s.mirror, onChange: (v) => { s.mirror = v; session.save(); session.tool?.redraw(); } }),
-    W.checkbox("Snap the direction to 45° (Shift does too)", { value: s.snap45, onChange: (v) => { s.snap45 = v; session.save(); } }),
-    W.checkbox("Skip spots the ground or another unit refuses", { value: s.skipRefused, onChange: (v) => { s.skipRefused = v; session.save(); } }),
+  const sideSel = W.select([{ value: "auto", label: t("Nearer end") }, { value: "left", label: t("Left end") }, { value: "right", label: t("Right end") }], { value: s.geyserSide, onChange: (v) => { s.geyserSide = v as GeyserSide; session.save(); session.tool?.redraw(); } });
+  root.append(section(t("Base"), true,
+    row(t("Preset"), presetSel),
+    row(t("Patches"), mineralsIn, unit(t("mineral fields"))),
+    row(t("Geysers"), geysersIn, sideSel),
+    row(t("Gap"), num("gap", 1, 8), unit(t("tiles to the hall (3 mines fastest)"))),
+    row(t("Geyser gap"), num("geyserGap", 1, 8), unit(t("tiles to the hall"))),
+    row(t("Spacing"), num("geyserSpacing", 0, 4), unit(t("tiles between geyser and patches"))),
+    W.checkbox(t("Place for every player (the symmetry's images)"), { value: s.mirror, onChange: (v) => { s.mirror = v; session.save(); session.tool?.redraw(); } }),
+    W.checkbox(t("Snap the direction to 45° (Shift does too)"), { value: s.snap45, onChange: (v) => { s.snap45 = v; session.save(); } }),
+    W.checkbox(t("Skip spots the ground or another unit refuses"), { value: s.skipRefused, onChange: (v) => { s.skipRefused = v; session.save(); } }),
   ));
 
   /* Resources */
   const endIn = W.number({ value: s.endPatches ?? 0, min: 0, max: 50000, step: 1, onChange: (v) => { s.endPatches = endTick.input.checked ? Math.max(0, Math.round(v)) : null; session.save(); } });
-  const endTick = W.checkbox("End patches", { value: s.endPatches !== null, onChange: (v) => { s.endPatches = v ? Math.max(0, Math.round(Number(endIn.value) || 750)) : null; endIn.disabled = !v; if (v) endIn.value = String(s.endPatches); session.save(); } });
+  const endTick = W.checkbox(t("End patches"), { value: s.endPatches !== null, onChange: (v) => { s.endPatches = v ? Math.max(0, Math.round(Number(endIn.value) || 750)) : null; endIn.disabled = !v; if (v) endIn.value = String(s.endPatches); session.save(); } });
   endIn.disabled = s.endPatches === null;
-  const lookSel = W.select([{ value: "mixed", label: "Mixed (types 1, 2, 3 in turn)" }, { value: 0, label: "Type 1" }, { value: 1, label: "Type 2" }, { value: 2, label: "Type 3" }], { value: s.look, onChange: (v) => { s.look = v === "mixed" ? "mixed" : (Number(v) as 0 | 1 | 2); session.save(); } });
-  root.append(section("Resources", false,
-    row("Minerals", num("mineralValue", 0, 50000), unit("per patch")),
-    row("Gas", num("gasValue", 0, 50000), unit("per geyser")),
-    h("div", { className: "mlw-row" }, endTick, h("div", { className: "mlw-in" }, endIn, unit("for the outermost patch at each end"))),
-    row("Look", lookSel),
+  const lookSel = W.select([{ value: "mixed", label: t("Mixed (types 1, 2, 3 in turn)") }, { value: 0, label: t("Type {n}", { n: 1 }) }, { value: 1, label: t("Type {n}", { n: 2 }) }, { value: 2, label: t("Type {n}", { n: 3 }) }], { value: s.look, onChange: (v) => { s.look = v === "mixed" ? "mixed" : (Number(v) as 0 | 1 | 2); session.save(); } });
+  root.append(section(t("Resources"), false,
+    row(t("Minerals"), num("mineralValue", 0, 50000), unit(t("per patch"))),
+    row(t("Gas"), num("gasValue", 0, 50000), unit(t("per geyser"))),
+    h("div", { className: "mlw-row" }, endTick, h("div", { className: "mlw-in" }, endIn, unit(t("for the outermost patch at each end")))),
+    row(t("Look"), lookSel),
   ));
 
   /* Extras */
-  const blockBtn = h("button", { className: "mlw-tool", type: "button", onClick: () => session.start("block") }, h("span", { className: "mlw-glyph" }, "▬"), "Blocking patch (click)");
+  const blockBtn = h("button", { className: "mlw-tool", type: "button", onClick: () => session.start("block") }, h("span", { className: "mlw-glyph" }, "▬"), t("Blocking patch (click)"));
   toolBtns.set("block", blockBtn);
-  const startsTick = W.checkbox("Placing start locations replaces the players' old ones", { value: s.replaceStarts, onChange: (v) => { s.replaceStarts = v; session.save(); } });
+  const startsTick = W.checkbox(t("Placing start locations replaces the players' old ones"), { value: s.replaceStarts, onChange: (v) => { s.replaceStarts = v; session.save(); } });
   const gapList = h("div", { className: "mlw-list" });
   const summaryBox = h("div", { className: "mlw-status" });
-  root.append(section("More", false,
+  root.append(section(t("More"), false,
     h("div", { className: "mlw-btns" },
-      W.button("Mirror selected units", { title: "Add the symmetry's images of the selected units, for the matching players", onClick: () => session.mirrorSelection() }),
-      W.button("Check symmetry", { title: "Select every unit that has no counterpart under the symmetry", onClick: () => { session.checkSymmetry(); render(); } }),
-      W.button("Resource summary", { onClick: () => { summaryBox.innerHTML = session.summary(); } }),
+      W.button(t("Mirror selected units"), { title: t("Add the symmetry's images of the selected units, for the matching players"), onClick: () => session.mirrorSelection() }),
+      W.button(t("Check symmetry"), { title: t("Select every unit that has no counterpart under the symmetry"), onClick: () => { session.checkSymmetry(); render(); } }),
+      W.button(t("Resource summary"), { onClick: () => { summaryBox.innerHTML = session.summary(); } }),
     ),
     gapList,
     summaryBox,
     h("div", { className: "mlw-tools" }, blockBtn),
-    row("Amount", num("blockValue", 0, 50000), unit("minerals in a blocking patch")),
+    row(t("Amount"), num("blockValue", 0, 50000), unit(t("minerals in a blocking patch"))),
     startsTick,
   ));
 
   const status = h("div", { className: "mlw-status mlw-main" });
   root.append(status);
-  root.append(h("div", { className: "mlw-keys" },
-    h("b", null, "Start locations"), ": click where Player 1 starts and the rest follow the symmetry. ",
-    h("b", null, "Add base"), ": press on the hall spot, drag towards the minerals (a click points them away from the map's centre); red boxes are spots the map refuses. ",
-    h("kbd", null, "Esc"), " or a right-click drops a drag, then leaves the tool.",
-  ));
+  // The help keeps its bold names and key cap: each sentence is one string, the markup is ours.
+  const keys = h("div", { className: "mlw-keys" });
+  keys.innerHTML = [
+    t("<b>Start locations</b>: click where Player 1 starts and the rest follow the symmetry."),
+    t("<b>Add base</b>: press on the hall spot, drag towards the minerals (a click points them away from the map's centre); red boxes are spots the map refuses."),
+    t("<kbd>Esc</kbd> or a right-click drops a drag, then leaves the tool."),
+  ].join(" ");
+  root.append(keys);
 
   function render() {
     const sz = session.size();
     const info = symmetryInfo(s.symmetry);
     const usable = sz ? symmetryAvailable(s.symmetry, sz.width, sz.height) : true;
     symNote.textContent = usable
-      ? `${info.players} player${info.players === 1 ? "" : "s"}. Player 1 is what you place; the others are its images.`
-      : `${info.label} needs a square map; this one is ${sz!.width} × ${sz!.height}, so it acts as none.`;
+      ? t("{n, plural, one {# player} other {# players}}. Player 1 is what you place; the others are its images.", { n: info.players })
+      : t("{symmetry} needs a square map; this one is {w} × {h}, so it acts as none.", { symmetry: translate(info.label), w: sz!.width, h: sz!.height });
     for (const [id, btn] of toolBtns) btn.classList.toggle("on", session.active && session.toolId === id);
-    status.innerHTML = session.status || (api.document.isOpen() ? "Ready." : "Open a map first.");
+    status.innerHTML = session.status || (api.document.isOpen() ? t("Ready.") : t("Open a map first."));
     gapList.replaceChildren();
     if (session.gaps.length) {
       const scn = api.document.scenario();
@@ -752,9 +766,9 @@ function mountPanel(session: Session, body: HTMLElement): () => void {
         if (seen.has(g.index) || !scn) continue;
         seen.add(g.index);
         const u = scn.units[g.index];
-        gapList.append(h("div", { className: "mlw-item", title: "Click to go there", onClick: () => api.view.goTo({ kind: "unit", index: g.index }) },
-          h("span", { className: "mlw-grow" }, `${api.palette.unitName(u.unitId)} at ${Math.floor(u.x / TILE)}, ${Math.floor(u.y / TILE)}`),
-          h("span", { className: "mlw-dim" }, `${api.names.player(u.owner)} · no image ${g.image + 1}`),
+        gapList.append(h("div", { className: "mlw-item", title: t("Click to go there"), onClick: () => api.view.goTo({ kind: "unit", index: g.index }) },
+          h("span", { className: "mlw-grow" }, t("{unit} at {x}, {y}", { unit: api.palette.unitName(u.unitId), x: Math.floor(u.x / TILE), y: Math.floor(u.y / TILE) })),
+          h("span", { className: "mlw-dim" }, t("{player} · no image {n}", { player: playerName(u.owner), n: g.image + 1 })),
         ));
       }
     }
@@ -768,32 +782,43 @@ function mountPanel(session: Session, body: HTMLElement): () => void {
 /* ── activate ───────────────────────────────────────────── */
 
 export default function activate(api: PluginApi) {
+  api.i18n.register({ ko: KO });
+  bindLanguage(api);
   const session = new Session(api);
 
   const openPanel = () => {
     if (session.panel?.isOpen()) return;
     session.panel = api.ui.panel({
-      title: "Melee Wizard",
+      title: t("Melee Wizard"),
       width: 320,
       mount: (body) => mountPanel(session, body),
       onClose: () => { session.panel = null; session.stop(); },
     });
   };
 
-  api.commands.register({ id: "open", title: "Melee Wizard…", enabled: () => api.document.isOpen(), run: openPanel });
-  api.commands.register({ id: "starts", title: "Place symmetric start locations", enabled: () => api.document.isOpen(), run: () => { openPanel(); session.start("starts"); } });
-  api.commands.register({ id: "base", title: "Add a base", enabled: () => api.document.isOpen(), run: () => { openPanel(); session.start("base"); } });
-  api.commands.register({ id: "bases-at-starts", title: "Bases at every start location", enabled: () => api.document.isOpen(), run: () => { openPanel(); session.basesAtStarts(); } });
-  api.commands.register({ id: "mirror-selection", title: "Mirror selected units", enabled: () => api.document.isOpen(), run: () => session.mirrorSelection() });
-  api.commands.register({ id: "check-symmetry", title: "Check symmetry", enabled: () => api.document.isOpen(), run: () => { openPanel(); session.checkSymmetry(); } });
+  // Menu labels and command titles go to the editor in English; it shows them in the reader's language.
+  api.commands.register({ id: "open", title: msg("Melee Wizard…"), enabled: () => api.document.isOpen(), run: openPanel });
+  api.commands.register({ id: "starts", title: msg("Place symmetric start locations"), enabled: () => api.document.isOpen(), run: () => { openPanel(); session.start("starts"); } });
+  api.commands.register({ id: "base", title: msg("Add a base"), enabled: () => api.document.isOpen(), run: () => { openPanel(); session.start("base"); } });
+  api.commands.register({ id: "bases-at-starts", title: msg("Bases at every start location"), enabled: () => api.document.isOpen(), run: () => { openPanel(); session.basesAtStarts(); } });
+  api.commands.register({ id: "mirror-selection", title: msg("Mirror selected units"), enabled: () => api.document.isOpen(), run: () => session.mirrorSelection() });
+  api.commands.register({ id: "check-symmetry", title: msg("Check symmetry"), enabled: () => api.document.isOpen(), run: () => { openPanel(); session.checkSymmetry(); } });
 
-  api.menu.add("Tools", { label: "Melee Wizard…", enabled: () => api.document.isOpen(), command: "open" });
-  api.menu.add("Tools", { label: "Bases at Every Start Location", enabled: () => api.document.isOpen(), command: "bases-at-starts" });
-  api.contextMenu.add("viewport", { label: "Melee Wizard…", command: "open" });
-  api.contextMenu.add("viewport", { label: "Add Base Here…", command: "base" });
+  api.menu.add("Tools", { label: msg("Melee Wizard…"), enabled: () => api.document.isOpen(), command: "open" });
+  api.menu.add("Tools", { label: msg("Bases at Every Start Location"), enabled: () => api.document.isOpen(), command: "bases-at-starts" });
+  api.contextMenu.add("viewport", { label: msg("Melee Wizard…"), command: "open" });
+  api.contextMenu.add("viewport", { label: msg("Add Base Here…"), command: "base" });
   api.hotkeys.add("Ctrl+Shift+M", { command: "open" });
 
   api.events.on("document", () => { session.gaps = []; session.status = ""; session.notify(); });
   api.events.on("units", () => session.notify());
   api.events.on("selection", () => session.notify());
+  // A new language: the panel is built again in it (a running tool keeps its old hint until it is picked again).
+  api.events.on("language", () => {
+    if (!session.panel?.isOpen()) return;
+    const tool = session.active ? session.toolId : null;
+    session.panel.close();
+    openPanel();
+    if (tool) session.start(tool);
+  });
 }

@@ -68,8 +68,9 @@ the mirror and symmetry checks, and the summary.
 | `plugin.json` | the manifest the editor reads (name, version, `entry`, `icon`, the API version it needs) |
 | `plugin.ts` | `activate(api)`: the panel, the three map tools with their previews, the transactions |
 | `layout.ts` | the pure geometry: the resource ring, the mineral line and geyser, the symmetries and their images, the symmetry check, the base summary |
+| `i18n.ts`, `ko.ts` | the plugin's words in the editor's language: `t()` / `msg()` and the Korean catalogue |
 | `dist/plugin.js` | the bundle the editor loads; `npm run build` writes it, CI commits it |
-| `tests/` | vitest over `layout.ts` |
+| `tests/` | vitest over `layout.ts`, and a check that `ko.ts` has every string the plugin shows |
 
 Types come from [`@scm-js/plugin-api`](https://github.com/scm-js/plugin-api), a devDependency
 generated from the editor's own `src/plugins/api.ts`; `npm update @scm-js/plugin-api` takes the

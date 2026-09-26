@@ -16,6 +16,7 @@
  * the way the lines on Blizzard's own maps do; the geyser is a 4 × 2 box on the same
  * ring, just past one end of the line.
  */
+import { msg } from "./i18n";
 
 export const TILE = 32;
 
@@ -276,15 +277,15 @@ export interface SymmetryInfo {
 }
 
 export const SYMMETRIES: SymmetryInfo[] = [
-  { id: "none", label: "None (one player)", players: 1, square: false },
-  { id: "mirror-x", label: "Mirror left ↔ right (2)", players: 2, square: false },
-  { id: "mirror-y", label: "Mirror top ↔ bottom (2)", players: 2, square: false },
-  { id: "rot180", label: "Rotate 180° (2)", players: 2, square: false },
-  { id: "diag", label: "Mirror on the diagonal (2, square)", players: 2, square: true },
-  { id: "antidiag", label: "Mirror on the other diagonal (2, square)", players: 2, square: true },
-  { id: "rot90", label: "Rotate 90° (4, square)", players: 4, square: true },
-  { id: "quad", label: "Mirror both ways (4)", players: 4, square: false },
-  { id: "octo", label: "Mirror both ways and both diagonals (8, square)", players: 8, square: true },
+  { id: "none", label: msg("None (one player)"), players: 1, square: false },
+  { id: "mirror-x", label: msg("Mirror left ↔ right (2)"), players: 2, square: false },
+  { id: "mirror-y", label: msg("Mirror top ↔ bottom (2)"), players: 2, square: false },
+  { id: "rot180", label: msg("Rotate 180° (2)"), players: 2, square: false },
+  { id: "diag", label: msg("Mirror on the diagonal (2, square)"), players: 2, square: true },
+  { id: "antidiag", label: msg("Mirror on the other diagonal (2, square)"), players: 2, square: true },
+  { id: "rot90", label: msg("Rotate 90° (4, square)"), players: 4, square: true },
+  { id: "quad", label: msg("Mirror both ways (4)"), players: 4, square: false },
+  { id: "octo", label: msg("Mirror both ways and both diagonals (8, square)"), players: 8, square: true },
 ];
 
 export function symmetryInfo(mode: SymmetryMode): SymmetryInfo {
