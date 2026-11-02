@@ -1,5 +1,5 @@
 /**
- * Melee Wizard — a plugin for the scmJS map editor (https://github.com/jeany55/scm-js).
+ * Melee Wizard — a plugin for the scmJS map editor (https://github.com/scm-js/scm-js).
  *
  * Tools ▸ Melee Wizard… opens a panel beside the map for the parts of a ladder-style map
  * that are geometry rather than art: symmetric start locations for 2, 4 or 8 players,
