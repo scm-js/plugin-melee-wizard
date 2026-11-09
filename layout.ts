@@ -14,7 +14,8 @@
  * the ring of positions whose gap to the town hall's 4 × 3 footprint is exactly three,
  * spread around the direction the map maker points, wrapping round the hall's corners
  * the way the lines on Blizzard's own maps do; the geyser is a 4 × 2 box on the same
- * ring, just past one end of the line.
+ * ring, just past one end of the line. Those are the game's sizes; a mod's units.dat may
+ * have others, which `Footprints` carries.
  */
 import { msg } from "./i18n";
 
@@ -38,10 +39,27 @@ export interface TileRect {
   h: number;
 }
 
-/** units.dat placement boxes, in tiles. */
+/** The game's own units.dat placement boxes, in tiles. */
 export const HALL: Size = { w: 4, h: 3 };
 export const MINERAL: Size = { w: 2, h: 1 };
 export const GEYSER: Size = { w: 4, h: 2 };
+
+/**
+ * The boxes a base is laid out with, in tiles: the town hall (a start location's box), a
+ * mineral patch and a geyser. A mod's units.dat may give them other sizes.
+ */
+export interface Footprints {
+  hall: Size;
+  mineral: Size;
+  geyser: Size;
+}
+
+export const GAME_FOOTPRINTS: Footprints = { hall: HALL, mineral: MINERAL, geyser: GEYSER };
+
+/** A placement box in pixels as the tiles it covers: rounded up, at least one each way. */
+export function tilesOf(width: number, height: number): Size {
+  return { w: Math.max(1, Math.ceil(width / TILE)), h: Math.max(1, Math.ceil(height / TILE)) };
+}
 
 /** units.dat ids. */
 export const START_LOCATION = 214;
@@ -160,6 +178,8 @@ export interface BaseSpec {
    * when omitted.
    */
   fits?: (rect: TileRect) => boolean;
+  /** The patch and geyser boxes; the game's own when omitted. The hall's is the `hall` rectangle itself. */
+  sizes?: Footprints;
 }
 
 export const DEFAULT_SPEC: BaseSpec = { minerals: 8, geysers: 1, gap: 3, geyserGap: 3, geyserSpacing: 1, geyserSide: "auto", direction: Math.PI };
@@ -185,7 +205,7 @@ export interface BaseLayout {
  */
 export function layoutBase(hall: TileRect, spec: BaseSpec): BaseLayout {
   const fits = spec.fits ?? (() => true);
-  const ring = ringPositions(hall, MINERAL, spec.gap).filter(fits);
+  const ring = ringPositions(hall, spec.sizes?.mineral ?? MINERAL, spec.gap).filter(fits);
   const n = ring.length;
   const minerals: TileRect[] = [];
   const short = { minerals: 0, geysers: 0 };
@@ -220,7 +240,7 @@ export function layoutBase(hall: TileRect, spec: BaseSpec): BaseLayout {
 
   const geysers: TileRect[] = [];
   if (spec.geysers > 0) {
-    const gring = ringPositions(hall, GEYSER, spec.geyserGap).filter(fits);
+    const gring = ringPositions(hall, spec.sizes?.geyser ?? GEYSER, spec.geyserGap).filter(fits);
     const clear = (g: TileRect) => minerals.every((m) => chebGap(m, g) >= spec.geyserSpacing) && geysers.every((o) => chebGap(o, g) >= 1);
     // The nearest clear position past an end of the line on a given side.
     const pastEnd = (side: "left" | "right"): TileRect | null => {
