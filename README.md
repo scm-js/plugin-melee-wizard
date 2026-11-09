@@ -71,6 +71,10 @@ ring spot nearest the direction you point and grows to both sides, staying centr
 point at a corner, the line wraps around it, as on Blizzard's own maps. The geyser takes
 the nearest clear spot past the end of the line.
 
+The sizes are the data set's. With the game's own data a hall is 4 × 3 tiles, a mineral
+patch 2 × 1 and a geyser 4 × 2. A mod whose units.dat gives the start location, the mineral
+field or the geyser another placement box gets its lines laid out with that box.
+
 Under a mirror or a 180° rotation, every image lands exactly on the tile grid. Under a 90°
 rotation, a mineral patch's image is half a tile off the grid and the editor snaps it. Those
 bases are half a tile from perfect, as on real four-player rotational maps.

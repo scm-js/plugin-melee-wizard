@@ -53,6 +53,10 @@ var TILE = 32;
 var HALL = { w: 4, h: 3 };
 var MINERAL = { w: 2, h: 1 };
 var GEYSER = { w: 4, h: 2 };
+var GAME_FOOTPRINTS = { hall: HALL, mineral: MINERAL, geyser: GEYSER };
+function tilesOf(width, height) {
+  return { w: Math.max(1, Math.ceil(width / TILE)), h: Math.max(1, Math.ceil(height / TILE)) };
+}
 var START_LOCATION = 214;
 var MINERAL_FIELDS = [176, 177, 178];
 var VESPENE_GEYSER = 188;
@@ -109,7 +113,7 @@ function ringPositions(hall, size, gap) {
 }
 function layoutBase(hall, spec) {
   const fits = spec.fits ?? (() => true);
-  const ring = ringPositions(hall, MINERAL, spec.gap).filter(fits);
+  const ring = ringPositions(hall, spec.sizes?.mineral ?? MINERAL, spec.gap).filter(fits);
   const n = ring.length;
   const minerals = [];
   const short = { minerals: 0, geysers: 0 };
@@ -164,7 +168,7 @@ function layoutBase(hall, spec) {
   }
   const geysers = [];
   if (spec.geysers > 0) {
-    const gring = ringPositions(hall, GEYSER, spec.geyserGap).filter(fits);
+    const gring = ringPositions(hall, spec.sizes?.geyser ?? GEYSER, spec.geyserGap).filter(fits);
     const clear = (g) => minerals.every((m) => chebGap(m, g) >= spec.geyserSpacing) && geysers.every((o) => chebGap(o, g) >= 1);
     const pastEnd = (side) => {
       let best = null;
@@ -624,7 +628,21 @@ var Session = class {
   }
   spec(direction) {
     const s = this.settings;
-    return { minerals: s.minerals, geysers: s.geysers, gap: s.gap, geyserGap: s.geyserGap, geyserSpacing: s.geyserSpacing, geyserSide: s.geyserSide, direction };
+    return { minerals: s.minerals, geysers: s.geysers, gap: s.gap, geyserGap: s.geyserGap, geyserSpacing: s.geyserSpacing, geyserSide: s.geyserSide, direction, sizes: this.footprints() };
+  }
+  /**
+   * The start location's, a mineral patch's and a geyser's placement boxes, from the data
+   * set in use, so a mod's units lay out at their own sizes. The game's own until the unit
+   * tables are loaded (the palette answers a one-tile box before then).
+   */
+  footprints() {
+    const { api } = this;
+    if (!api.data.ready()) return GAME_FOOTPRINTS;
+    const box = (unitId, game) => {
+      const size = api.palette.unitSize(unitId);
+      return size.width > 0 && size.height > 0 ? tilesOf(size.width, size.height) : game;
+    };
+    return { hall: box(START_LOCATION, GAME_FOOTPRINTS.hall), mineral: box(MINERAL_FIELDS[0], GAME_FOOTPRINTS.mineral), geyser: box(VESPENE_GEYSER, GAME_FOOTPRINTS.geyser) };
   }
   values() {
     const s = this.settings;
@@ -707,10 +725,10 @@ var Session = class {
   }
   hallUnder(p) {
     for (const s of this.api.query.startLocations()) {
-      const r = rectAt(s.x, s.y, HALL);
+      const r = rectAt(s.x, s.y, this.footprints().hall);
       if (p.tx >= r.x && p.tx < r.x + r.w && p.ty >= r.y && p.ty < r.y + r.h) return r;
     }
-    return rectAt(p.px, p.py, HALL);
+    return rectAt(p.px, p.py, this.footprints().hall);
   }
   onDown(p) {
     if (!p.inMap) return;
@@ -751,7 +769,7 @@ var Session = class {
     }
     const sz = this.size();
     if (!sz) return;
-    const hall = rectAt(p.px, p.py, HALL);
+    const hall = rectAt(p.px, p.py, this.footprints().hall);
     const rects = rectImages(hall, this.images(), this.toward());
     this.ghost = {
       boxes: rects.map((rect, image) => ({ rect, kind: "start", ok: inMap(rect, sz.width, sz.height), image, label: playerName(image) })),
@@ -799,7 +817,7 @@ var Session = class {
     }
     const sz = this.size();
     if (!sz) return;
-    const rect = rectAt(p.px, p.py, MINERAL);
+    const rect = rectAt(p.px, p.py, this.footprints().mineral);
     const c = centreOf(rect);
     const ok = inMap(rect, sz.width, sz.height) && this.api.query.placement(MINERAL_FIELDS[0], c.x, c.y)?.problem === null;
     this.ghost = { boxes: [{ rect, kind: "mineral", ok, image: 0 }], from: null, to: null };
@@ -808,7 +826,7 @@ var Session = class {
   placeStarts(p) {
     const sz = this.size();
     if (!sz) return;
-    const hall = rectAt(p.px, p.py, HALL);
+    const hall = rectAt(p.px, p.py, this.footprints().hall);
     const rects = rectImages(hall, this.images(), this.toward());
     const n = rects.length;
     const result = this.api.document.edit(t("Place {n, plural, one {# start location} other {# start locations}}", { n }), (tx) => {
@@ -876,7 +894,7 @@ var Session = class {
   placeBlock(p) {
     const sz = this.size();
     if (!sz) return;
-    const rect = rectAt(p.px, p.py, MINERAL);
+    const rect = rectAt(p.px, p.py, this.footprints().mineral);
     if (!inMap(rect, sz.width, sz.height)) return;
     const c = centreOf(rect);
     const id = mineralTypeAt(rect.x, rect.y);
@@ -909,11 +927,11 @@ var Session = class {
     });
     let bases = [];
     if (symmetric) {
-      const hall = rectAt(starts[0].x, starts[0].y, HALL);
+      const hall = rectAt(starts[0].x, starts[0].y, this.footprints().hall);
       bases = baseImages(hall, this.spec(outwardDirection(starts[0].x, starts[0].y, sz.width, sz.height)), this.values(), images, this.toward());
     } else {
       starts.forEach((s, i) => {
-        const hall = rectAt(s.x, s.y, HALL);
+        const hall = rectAt(s.x, s.y, this.footprints().hall);
         bases.push(...baseImages(hall, this.spec(outwardDirection(s.x, s.y, sz.width, sz.height)), this.values(), [(p) => p]).map((b) => ({ ...b, image: i })));
       });
     }

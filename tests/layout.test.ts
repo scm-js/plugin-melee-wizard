@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  angleDiff, baseImages, baseResources, centreOf, chebGap, DEFAULT_SPEC, DEFAULT_VALUES, GEYSER, HALL, inMap, layoutBase, MINERAL, MINERAL_FIELDS,
+  angleDiff, baseImages, baseResources, centreOf, chebGap, DEFAULT_SPEC, DEFAULT_VALUES, GAME_FOOTPRINTS, GEYSER, HALL, inMap, layoutBase, MINERAL, MINERAL_FIELDS,
   outwardDirection, overlaps, rectAt, rectImages, ringPositions, snapAngle, summarizeBases, swapsAxes, symmetryAvailable, symmetryAxes, symmetryGaps, symmetryImages,
-  TILE, VESPENE_GEYSER, type TileRect,
+  TILE, tilesOf, VESPENE_GEYSER, type TileRect,
 } from "../layout";
 
 const hall: TileRect = { x: 12, y: 12, w: 4, h: 3 };
@@ -158,6 +158,31 @@ describe("symmetry", () => {
     expect(symmetryImages("octo", S, S).length).toBe(8);
     expect(symmetryAxes("quad", W, H).length).toBe(2);
     expect(symmetryAxes("rot180", W, H).length).toBe(0);
+  });
+  it("lays a base out with a data set's own boxes, and the game's when given none", () => {
+    // The game's sizes, given or not, lay out the same base.
+    expect(layoutBase(hall, { ...DEFAULT_SPEC, sizes: GAME_FOOTPRINTS })).toEqual(layoutBase(hall, DEFAULT_SPEC));
+    // A mod whose patches are 3 × 2 and geysers 2 × 2, round a 5 × 4 hall.
+    const big: TileRect = { x: 12, y: 12, w: 5, h: 4 };
+    const sizes = { hall: { w: 5, h: 4 }, mineral: { w: 3, h: 2 }, geyser: { w: 2, h: 2 } };
+    const base = layoutBase(big, { ...DEFAULT_SPEC, sizes });
+    expect(base.minerals.length).toBe(8);
+    expect(base.geysers.length).toBe(1);
+    for (const m of base.minerals) {
+      expect([m.w, m.h]).toEqual([3, 2]);
+      expect(chebGap(m, big)).toBe(3);
+    }
+    expect([base.geysers[0].w, base.geysers[0].h]).toEqual([2, 2]);
+    expect(chebGap(base.geysers[0], big)).toBe(3);
+    const all = [...base.minerals, ...base.geysers];
+    all.forEach((a, i) => all.slice(i + 1).forEach((b) => expect(overlaps(a, b)).toBe(false)));
+  });
+  it("tilesOf turns a placement box in pixels into the tiles it covers", () => {
+    expect(tilesOf(128, 96)).toEqual(HALL);
+    expect(tilesOf(64, 32)).toEqual(MINERAL);
+    expect(tilesOf(128, 64)).toEqual(GEYSER);
+    expect(tilesOf(40, 20)).toEqual({ w: 2, h: 1 });
+    expect(tilesOf(0, 0)).toEqual({ w: 1, h: 1 });
   });
   it("baseImages mirrors every resource of a base", () => {
     const bases = baseImages(hall, DEFAULT_SPEC, DEFAULT_VALUES, symmetryImages("mirror-y", W, H));
